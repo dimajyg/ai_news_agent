@@ -1,0 +1,158 @@
+# AI News Agent Configuration - Openrouter Provider
+
+sources:
+  arxiv:
+    enabled: true
+    categories:
+      - cs.AI    # Artificial Intelligence
+      - cs.LG    # Machine Learning
+      - cs.CL    # Computation and Language
+      - cs.CV    # Computer Vision
+      - cs.RO    # Robotics
+      - cs.MA    # Multiagent Systems
+      - cs.NE    # Neural and Evolutionary Computing
+    max_results: 50
+    date_range: 5  # days
+    sort_by: "submittedDate"
+    include_keywords: []
+    exclude_keywords: []
+    
+  websites:
+    enabled: true
+    sources:
+      - name: "AI News"
+        url: "https://www.artificialintelligence-news.com/feed/"
+        type: "rss"
+        reliability_score: 0.8
+      - name: "MIT Technology Review"
+        url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/"
+        type: "rss"
+        reliability_score: 0.9
+      - name: "Towards Data Science"
+        url: "https://towardsdatascience.com/feed"
+        type: "rss"
+        reliability_score: 0.8
+    scrape_delay: 1.0  # seconds between requests
+    max_articles_per_source: 20
+    
+  telegram:
+    enabled: true
+    channels:
+      - "@gonzo_ML"
+      - "@lovedeathtransformers"
+      - "@cryptovalerii"
+      - "@ai_newz"
+    max_messages_per_channel: 50
+    message_age_limit: 24  # hours
+    rate_limit: 20  # requests per minute
+
+clustering:
+  algorithm: "dbscan"
+  metric: "cosine"
+  dbscan_eps: 0.2
+  dbscan_min_samples: 2
+  min_cluster_size: 1
+  max_cluster_size: 10
+  embedding_model: "qwen/qwen3-embedding-8b"
+  
+ranking:
+  weights:
+    cluster_size: 0.4
+    source_diversity: 0.2
+    recency: 0.2
+    author_reputation: 0.2
+  max_top_clusters: 10
+  
+# LLM Provider Configuration - Openrouter
+llm:
+  provider: "openrouter"  # Using Openrouter 
+  
+content_analysis:
+  # llm_model: "x-ai/grok-4.1-fast:free"  # Openrouter model for analysis
+  llm_model: "google/gemini-2.5-flash"  # Openrouter model for analysis
+  max_tokens: 10000
+  temperature: 0.3
+  analysis_prompt: |
+    Analyze this AI/ML research article and provide:
+    1. Key insights and contributions
+    2. What makes this research special or innovative
+    3. Specific aspects that would be interesting to highlight
+    4. Potential impact on the field
+    
+post_generation:
+  # llm_model: "x-ai/grok-4.1-fast:free"  # Openrouter model for post generation
+  llm_model: "google/gemini-2.5-flash"  # Openrouter model for post generation
+  max_tokens: 20000
+  temperature: 0.7
+  post_template: |
+    🤖 Daily AI Research Roundup - {date}
+    
+    📊 Today's Top {article_count} AI Research Highlights:
+    
+    {articles_content}
+    
+    💡 Key Insights:
+    {key_insights}
+    
+    🔗 Read more in the threads below!
+    
+    #AIResearch #MachineLearning #ArtificialIntelligence
+
+telegram:
+  parse_mode: "HTML"
+  disable_web_page_preview: false
+  enable_notifications: true
+  max_message_length: 4096
+  
+vector_store:
+  collection_name: "ai_news_articles"
+  embedding_model: "qwen/qwen3-embedding-8b"
+  similarity_threshold: 0.90
+  chunk_size: 1000
+  chunk_overlap: 200
+  
+performance:
+  max_retries: 3
+  batch_size: 50
+  embedding_batch_size: 32
+  max_concurrent_requests: 10
+  timeout: 30  # seconds
+  
+monitoring:
+  metrics_port: 8000
+  health_check_interval: 30
+  log_level: "INFO"
+  enable_prometheus: true
+  
+scheduling:
+  enabled: true
+  timezone: "UTC"
+  daily_trigger_time: "09:00"
+  cleanup_interval: "weekly"
+  
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/agent.log"
+  max_size: "10MB"
+  backup_count: 5
+
+debug:
+  save_extracted_texts: true
+  extracted_texts_path: "./logs/extraction_debug.jsonl"
+  save_xml_documents: true
+  xml_output_dir: "./logs/xml_docs"
+
+processing:
+  xml:
+    use_research_agent: true
+    translate_to_english: true
+    web_enrich_if_empty: true
+    web_enrich_if_short: true
+    min_main_idea_words: 120
+    min_uniqueness_words: 60
+    web_search_max_results: 5
+    main_idea_target_min: 100
+    main_idea_target_max: 300
+    uniqueness_target_min: 50
+    uniqueness_target_max: 150

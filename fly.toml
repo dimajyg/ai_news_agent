@@ -1,0 +1,26 @@
+# fly.toml app configuration file for ai-news-agent-bot
+
+app = 'ai-news-agent-bot'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile.fly'
+
+[env]
+  CHROMA_SERVER_HOST = '0.0.0.0'
+  CHROMA_SERVER_PORT = '8000'
+  LOG_LEVEL = 'INFO'
+  PYTHONUNBUFFERED = '1'
+  SCHEDULE_TIME = '09:00'
+
+[[mounts]]
+  source = 'chroma_data'
+  destination = '/app/chroma_data'
+
+# No http_service or services section needed for a background worker bot
+# This prevents health check failures since we don't run a web server
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 2
+  memory_mb = 2048

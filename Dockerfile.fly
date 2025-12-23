@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1
+# Build stage
+FROM python:3.11-slim-bookworm AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+# build-essential: for compiling C extensions
+# curl: for downloading tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (extremely fast Python package installer)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Create virtual environment
+ENV VIRTUAL_ENV=/app/.venv
+RUN uv venv $VIRTUAL_ENV
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install dependencies using uv
+# This is much faster than pip and handles wheels better
+RUN uv pip install --no-cache -r requirements.txt
+
+# Final runtime stage
+FROM python:3.11-slim-bookworm
+
+WORKDIR /app
+
+# Install minimal runtime dependencies
+# libpq5: for PostgreSQL
+# curl: for healthchecks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Set environment variables to use the virtual environment
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Copy application code
+COPY src/ ./src/
+COPY config_openrouter.yaml ./config.yaml
+COPY migrations/ ./migrations/
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /app/chroma_data /app/sessions
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
+
+CMD ["python", "-m", "src.bot_main"]
