@@ -24,6 +24,7 @@ class BotService:
         self.bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         self.database_url = os.getenv('DATABASE_URL')
         self.schedule_time = os.getenv('SCHEDULE_TIME', '09:00')
+        self.enable_scheduler = os.getenv('ENABLE_INTERNAL_SCHEDULER', 'true').lower() == 'true'
         
         if not self.bot_token:
             raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
@@ -43,11 +44,14 @@ class BotService:
             self.bot = MultiTenantBot(self.bot_token, self.db)
             await self.bot.initialize()
             
-            self.scheduler = DailyScheduler(
-                bot=self.bot,
-                db=self.db,
-                schedule_time=self.schedule_time
-            )
+            if self.enable_scheduler:
+                self.scheduler = DailyScheduler(
+                    bot=self.bot,
+                    db=self.db,
+                    schedule_time=self.schedule_time
+                )
+            else:
+                logger.info("Internal scheduler disabled by configuration")
             
             logger.info("Bot service initialized successfully")
             
@@ -67,10 +71,11 @@ class BotService:
             
             await self.bot.start()
             
-            await self.scheduler.start()
+            if self.scheduler:
+                await self.scheduler.start()
+                logger.info(f"Daily runs scheduled at {self.schedule_time} UTC")
             
             logger.info("Bot service started successfully")
-            logger.info(f"Bot is running. Daily runs scheduled at {self.schedule_time} UTC")
             
             while self.running:
                 await asyncio.sleep(1)

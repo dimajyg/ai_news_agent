@@ -66,6 +66,10 @@ ranking:
 # LLM Provider Configuration - Openrouter
 llm:
   provider: "openrouter"  # Using Openrouter 
+
+verification:
+  llm_model: "google/gemini-2.5-flash"
+  max_tokens: 10000
   
 content_analysis:
   # llm_model: "x-ai/grok-4.1-fast:free"  # Openrouter model for analysis

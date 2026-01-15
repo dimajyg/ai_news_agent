@@ -81,7 +81,7 @@ class TaskScheduler:
         
         # Schedule the task
         job = schedule.every(interval_seconds).seconds.do(
-            self._execute_task, task
+            lambda: asyncio.create_task(self._execute_task(task))
         )
         
         logger.info(f"Added interval task '{name}' running every {interval_seconds} seconds")
@@ -125,7 +125,7 @@ class TaskScheduler:
         
         # Schedule the task
         job = schedule.every().day.at(time_str).do(
-            self._execute_task, task
+            lambda: asyncio.create_task(self._execute_task(task))
         )
         
         logger.info(f"Added daily task '{name}' running at {time_str}")
@@ -180,7 +180,7 @@ class TaskScheduler:
         if hour != '*':
             job = job.at(f"{hour}:{minute if minute != '*' else '00'}")
         
-        job.do(self._execute_task, task)
+        job.do(lambda: asyncio.create_task(self._execute_task(task)))
         
         logger.info(f"Added cron task '{name}' with expression '{cron_expression}'")
         return name
@@ -357,9 +357,7 @@ class TaskScheduler:
         while self.running:
             try:
                 # Run pending scheduled tasks
-                result = schedule.run_pending()
-                if asyncio.iscoroutine(result):
-                    await result
+                await schedule.run_pending()
                 
                 # Wait a bit before checking again
                 await asyncio.sleep(1)

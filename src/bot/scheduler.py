@@ -4,9 +4,9 @@ Daily scheduler for running AI news agent for all active groups.
 
 import asyncio
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Optional
-import aioschedule as schedule
+# import aioschedule as schedule  # Removed to fix coroutine error
 
 from ..database.manager import DatabaseManager
 from .telegram_bot import MultiTenantBot
@@ -29,10 +29,6 @@ class DailyScheduler:
         logger.info(f"Starting daily scheduler (runs at {self.schedule_time} UTC)")
         
         self.running = True
-        
-        # Wrap the coroutine in a lambda to avoid "Passing coroutines is forbidden" error
-        schedule.every().day.at(self.schedule_time).do(lambda: asyncio.create_task(self._run_all_groups()))
-        
         self._task = asyncio.create_task(self._scheduler_loop())
         
         logger.info("Daily scheduler started successfully")
@@ -50,16 +46,45 @@ class DailyScheduler:
             except asyncio.CancelledError:
                 pass
         
-        schedule.clear()
-        
         logger.info("Daily scheduler stopped")
     
     async def _scheduler_loop(self):
         """Main scheduler loop."""
+        logger.info(f"Scheduler loop started. Schedule time: {self.schedule_time}")
+        
         while self.running:
             try:
-                await schedule.run_pending()
+                # Calculate time until next run
+                now = datetime.now()
+                # Assuming schedule_time is HH:MM
+                h, m = map(int, self.schedule_time.split(':'))
+                
+                # Create target time for today
+                target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+                
+                # If target is in the past, schedule for tomorrow
+                if target <= now:
+                    target = target + timedelta(days=1)
+                
+                wait_seconds = (target - now).total_seconds()
+                logger.info(f"Next run scheduled in {wait_seconds:.0f} seconds (at {target})")
+                
+                # Sleep until the target time
+                # Check running flag periodically
+                while wait_seconds > 0 and self.running:
+                    sleep_time = min(wait_seconds, 60)
+                    await asyncio.sleep(sleep_time)
+                    wait_seconds -= sleep_time
+                
+                if not self.running:
+                    break
+                
+                # Run the job
+                await self._run_all_groups()
+                
+                # Wait a bit to avoid double execution
                 await asyncio.sleep(60)
+                
             except asyncio.CancelledError:
                 break
             except Exception as e:
